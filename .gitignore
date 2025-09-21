@@ -1,0 +1,70 @@
+# Environment and secrets
+.env
+.env.local
+.env.production
+.env.development
+*.env
+
+# Dependencies
+node_modules
+
+# Build outputs and generated files
+build/
+dist/
+target/
+cache-zk/
+artifacts-zk/
+frontend/build/
+
+# Log files
+*.log
+deployment*.log
+
+# ZK Circuit files (large binary files)
+*.zkey
+*.wasm
+*.wtns
+*.ptau
+circuits/*.zkey
+circuits/*.wasm
+circuits/*.wtns
+circuits/*.ptau
+frontend/public/circuits/
+frontend/build/circuits/
+
+# Deployment artifacts
+deployments/
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!hardhat.config.ts
+!verification_key.json
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+*.pid
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Exclude all README files except the main README.md
+README_*.md
+**/README.md
+!README.md
+!docs/README.md
