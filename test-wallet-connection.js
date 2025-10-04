@@ -62,3 +62,4 @@ if (typeof window !== 'undefined') {
 } else {
   console.log('This script should be run in a browser environment');
 }
+

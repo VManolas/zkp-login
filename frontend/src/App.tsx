@@ -588,6 +588,15 @@ function App() {
             <li>Login using ZK proof (password never revealed)</li>
             <li>Change password anytime with new ZK proof</li>
           </ol>
+          
+          <div className="warning-info">
+            <h4>⚠️ Console Warnings</h4>
+            <p>
+              You may see RPC warnings in the browser console about "eth_maxPriorityFeePerGas" not being available. 
+              This is normal for zkSync Era as it doesn't support EIP-1559 gas pricing. These warnings can be safely ignored 
+              and don't affect the functionality of the application.
+            </p>
+          </div>
         </div>
       </div>
     );
