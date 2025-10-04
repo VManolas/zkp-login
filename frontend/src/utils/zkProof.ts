@@ -31,13 +31,22 @@ export async function generateZKProof(inputs: ZKProofInputs): Promise<ZKProofRes
       throw new Error('Invalid inputs for proof generation');
     }
 
-    // For ZK proof, we don't pre-validate the password
-    // The circuit will handle the verification internally
-    // We just need to prepare the inputs for the circuit
+    console.log('🔐 Starting ZK proof generation...');
+    console.log('📝 Input validation:', {
+      passwordLength: inputs.password.length,
+      storedHashLength: inputs.storedHash.length,
+      storedHash: inputs.storedHash
+    });
 
-    // Convert password to BigInt using the same method as Poseidon hash
+    // Convert password to BigInt for the circuit
+    // The circuit will hash the password internally using Poseidon
     const passwordBytes = ethers.toUtf8Bytes(inputs.password);
     const passwordBigInt = BigInt(ethers.hexlify(passwordBytes));
+    
+    console.log('🔢 Password conversion:', {
+      passwordBytes: ethers.hexlify(passwordBytes),
+      passwordBigInt: passwordBigInt.toString()
+    });
     
     // Prepare circuit input
     const circuitInput = {
@@ -45,16 +54,65 @@ export async function generateZKProof(inputs: ZKProofInputs): Promise<ZKProofRes
       storedHash: inputs.storedHash
     };
 
+    console.log('⚙️ Circuit input prepared:', circuitInput);
+
     // Load the circuit files
     const wasmPath = '/circuits/login_auth.wasm';
     const zkeyPath = '/circuits/login_auth_final.zkey';
 
+    // Check if circuit files exist
+    try {
+      const wasmResponse = await fetch(wasmPath, { method: 'HEAD' });
+      if (!wasmResponse.ok) {
+        throw new Error(`Circuit WASM file not found at ${wasmPath}`);
+      }
+      
+      const zkeyResponse = await fetch(zkeyPath, { method: 'HEAD' });
+      if (!zkeyResponse.ok) {
+        throw new Error(`Circuit ZKEY file not found at ${zkeyPath}`);
+      }
+      
+      console.log('✅ Circuit files found');
+    } catch (fetchError) {
+      console.error('❌ Circuit file check failed:', fetchError);
+      throw new Error('Circuit files not found. Please ensure the circuit is compiled and the files are accessible.');
+    }
+
     // Generate witness and proof using snarkjs
-    const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-      circuitInput,
-      wasmPath,
-      zkeyPath
-    );
+    let proof, publicSignals;
+    try {
+      console.log('🔄 Generating witness and proof...');
+      const result = await snarkjs.groth16.fullProve(
+        circuitInput,
+        wasmPath,
+        zkeyPath
+      );
+      proof = result.proof;
+      publicSignals = result.publicSignals;
+      console.log('✅ Proof generated successfully');
+    } catch (error: any) {
+      console.error('❌ Proof generation failed:', error);
+      
+      // Handle specific error types
+      if (error.message && error.message.includes('Assert Failed')) {
+        throw new Error('Invalid password. The password does not match the stored hash.');
+      }
+      
+      if (error.message && error.message.includes('template')) {
+        throw new Error('Circuit template error. Please check the circuit compilation and try again.');
+      }
+      
+      if (error.message && error.message.includes('witness')) {
+        throw new Error('Witness generation failed. Please check your inputs and try again.');
+      }
+      
+      if (error.message && error.message.includes('constraint')) {
+        throw new Error('Circuit constraint failed. The password does not match the stored hash.');
+      }
+      
+      // Generic error with more context
+      throw new Error(`Proof generation failed: ${error.message || 'Unknown error'}`);
+    }
 
     // Convert proof to the expected format
     const formattedProof: ZKProof = {
@@ -79,15 +137,31 @@ export async function generateZKProof(inputs: ZKProofInputs): Promise<ZKProofRes
     };
 
     // Convert public signals to strings
+    // The circuit now outputs: [storedHashOut]
     const formattedPublicSignals = publicSignals.map(signal => signal.toString());
+    
+    console.log('📊 Generated public signals:', formattedPublicSignals);
+    console.log('🎯 Expected stored hash:', inputs.storedHash);
+    console.log('✅ ZK proof generation completed successfully');
 
     return {
       proof: formattedProof,
       publicSignals: formattedPublicSignals
     };
   } catch (error) {
-    console.error('Error generating ZK proof:', error);
-    throw new Error('Failed to generate ZK proof');
+    console.error('💥 Error generating ZK proof:', error);
+    
+    // Re-throw with more context if it's already a formatted error
+    if (error instanceof Error && error.message.includes('Invalid password')) {
+      throw error;
+    }
+    
+    if (error instanceof Error && error.message.includes('Circuit')) {
+      throw error;
+    }
+    
+    // Generic error fallback
+    throw new Error(`Failed to generate ZK proof: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 

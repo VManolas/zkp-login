@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Lock, User, Shield, Clock } from 'lucide-react';
 import { LoginAttemptResult } from '../types';
+import { ErrorHandler, ErrorInfo, classifyError } from './ErrorHandler';
 
 interface LoginFormProps {
   onSubmit: (password: string) => Promise<LoginAttemptResult>;
@@ -20,10 +21,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setErrorInfo(null);
 
     if (!password.trim()) {
       setError('Please enter your password');
@@ -38,11 +42,33 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     try {
       const result = await onSubmit(password);
       if (!result.success) {
+        // Classify the error for better user experience
+        const error = new Error(result.message);
+        const classifiedError = classifyError(error);
+        setErrorInfo(classifiedError);
         setError(result.message);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const error = err instanceof Error ? err : new Error('An unknown error occurred');
+      const classifiedError = classifyError(error);
+      setErrorInfo(classifiedError);
+      setError(error.message);
     }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setErrorInfo(null);
+    // The form will be ready for retry
+  };
+
+  const handleDismissError = () => {
+    setError(null);
+    setErrorInfo(null);
+  };
+
+  const handleShowDebug = () => {
+    setShowDebug(!showDebug);
   };
 
   const formatRetryTime = (seconds: number): string => {
@@ -110,7 +136,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         </div>
       )}
 
-      {error && (
+      {errorInfo && (
+        <ErrorHandler
+          error={errorInfo}
+          onRetry={handleRetry}
+          onDismiss={handleDismissError}
+          onShowDebug={handleShowDebug}
+          showDebug={showDebug}
+        />
+      )}
+
+      {error && !errorInfo && (
         <div className="error-message">
           <Shield className="icon" size={16} />
           {error}
